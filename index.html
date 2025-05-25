@@ -1,28 +1,60 @@
-<script>
-  function onScanSuccess(decodedText, decodedResult) {
-    document.getElementById('result').innerText = `تم المسح: ${decodedText}`;
-    if (window.ReactNativeWebView) {
-      window.ReactNativeWebView.postMessage(decodedText);
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <title>QR Scanner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    body { margin: 0; font-family: sans-serif; text-align: center; background: #f7f7f7; }
+    #reader { width: 100vw; height: 70vh; margin-top: 10px; }
+    #result { margin-top: 16px; font-size: 18px; color: green; }
+    #start-btn { display: none; }
+  </style>
+</head>
+<body>
+  <h2>يرجى توجيه الكاميرا نحو رمز QR</h2>
+  <div id="reader"></div>
+  <div id="result"></div>
+
+  <script>
+    // تعريف
+    let html5QrCode;
+
+    function startScanner() {
+      html5QrCode = new Html5Qrcode("reader");
+      // ابدأ بالكاميرا الخلفية تلقائيًا
+      Html5Qrcode.getCameras().then(devices => {
+        if (devices && devices.length) {
+          // ابحث عن كاميرا خلفية أو اختر الأولى
+          let backCam = devices.find(d => d.label.toLowerCase().includes('back')) || devices[0];
+          html5QrCode.start(
+            { deviceId: { exact: backCam.id } },
+            {
+              fps: 10,
+              qrbox: { width: 250, height: 250 }
+            },
+            qrCodeMessage => {
+              document.getElementById('result').innerText = `تم المسح: ${qrCodeMessage}`;
+              if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(qrCodeMessage);
+              }
+              html5QrCode.stop(); // أوقف الماسح بعد النجاح
+            },
+            errorMessage => {}
+          ).catch(err => {
+            document.getElementById('result').innerText = `فشل فتح الكاميرا: ${err}`;
+          });
+        } else {
+          document.getElementById('result').innerText = "لم يتم العثور على كاميرا.";
+        }
+      }).catch(err => {
+        document.getElementById('result').innerText = `حدث خطأ: ${err}`;
+      });
     }
-    html5QrcodeScanner.clear();
-  }
 
-  function onScanFailure(error) {}
-
-  // ضبط الخيارات لفتح الكاميرا الخلفية تلقائياً
-  const config = {
-    fps: 10,
-    qrbox: 250,
-    rememberLastUsedCamera: true,
-    supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-    // أهم سطر!
-    facingMode: { exact: "environment" }
-  };
-
-  const html5QrcodeScanner = new Html5QrcodeScanner(
-    "reader",
-    config,
-    false // verbose
-  );
-  html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-</script>
+    // ابدأ تلقائيًا عند تحميل الصفحة
+    window.onload = startScanner;
+  </script>
+</body>
+</html>
