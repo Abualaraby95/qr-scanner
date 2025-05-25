@@ -21,6 +21,7 @@
       border-radius: 12px;
       margin-top: 30px;
       border: 4px solid #fff;
+      background: #222;
     }
     #instructions {
       margin-top: 24px;
@@ -35,32 +36,65 @@
       word-break: break-all;
       text-align: center;
     }
+    #retry {
+      margin-top: 30px;
+      padding: 10px 30px;
+      font-size: 1.2em;
+      background: #fff;
+      color: #6c3483;
+      border-radius: 7px;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      display: none;
+    }
   </style>
 </head>
 <body>
   <div id="instructions">يرجى توجيه الكاميرا نحو رمز QR</div>
-  <video id="video" autoplay></video>
+  <video id="video" autoplay playsinline></video>
   <div id="result"></div>
+  <button id="retry" onclick="startScan()">إعادة المسح</button>
   <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
   <script>
     const video = document.getElementById('video');
     const resultDiv = document.getElementById('result');
+    const retryBtn = document.getElementById('retry');
     let scanning = false;
+    let stream = null;
 
-    // اطلب الإذن وافتح الكاميرا فورًا
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-      .then(stream => {
-        video.srcObject = stream;
+    function startScan() {
+      resultDiv.innerHTML = "";
+      retryBtn.style.display = "none";
+      if (stream) {
+        // إعادة استخدام الستريم القديم
         scanning = true;
         scan();
-      })
-      .catch(err => {
-        resultDiv.innerHTML = 'لم يتم منح إذن الكاميرا.';
-      });
+        return;
+      }
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+        .then(s => {
+          stream = s;
+          video.srcObject = stream;
+          scanning = true;
+          scan();
+        })
+        .catch(err => {
+          resultDiv.innerHTML = 'لم يتم منح إذن الكاميرا.';
+        });
+    }
+
+    function stopScan() {
+      scanning = false;
+      if (stream) {
+        const tracks = stream.getTracks();
+        tracks.forEach(track => track.stop());
+        stream = null;
+      }
+    }
 
     function scan() {
       if (!scanning) return;
-
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d');
       canvas.width = video.videoWidth;
@@ -71,15 +105,20 @@
       const code = jsQR(imageData.data, canvas.width, canvas.height);
       if (code) {
         scanning = false;
-        resultDiv.innerHTML = "تم قراءة الكود: " + code.data;
-        // أرسل النتيجة إلى React Native WebView
+        resultDiv.innerHTML = "تم قراءة الكود: <br>" + code.data;
+        retryBtn.style.display = "block";
+        // أرسل النتيجة إلى React Native WebView إذا كان متاحاً
         if (window.ReactNativeWebView) {
           window.ReactNativeWebView.postMessage(code.data);
         }
+        stopScan();
       } else {
         requestAnimationFrame(scan);
       }
     }
+
+    // بدء المسح تلقائياً عند تحميل الصفحة
+    window.onload = startScan;
   </script>
 </body>
 </html>
