@@ -70,22 +70,34 @@
         let scanning = false;
         let stream = null;
 
-        startBtn.onclick = async function() {
-            startBtn.style.display = "none";
-            scanMsg.textContent = "جاري تشغيل الكاميرا ...";
-            // طلب إذن الكاميرا
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                video.srcObject = stream;
-                video.style.display = "block";
-                scanMsg.style.display = "none";
-                scanning = true;
-                scanQR();
-            } catch (err) {
-                scanMsg.textContent = "تعذر الوصول للكاميرا. تأكد من إعطاء الإذن.";
+startBtn.onclick = async function() {
+    startBtn.style.display = "none";
+    scanMsg.textContent = "جاري التحقق من الأذونات ...";
+    // تحقق من وجود إذن للكاميرا
+    if (navigator.permissions && navigator.permissions.query) {
+        try {
+            const permissionStatus = await navigator.permissions.query({ name: 'camera' });
+            if (permissionStatus.state === "denied") {
+                scanMsg.textContent = "تم رفض إذن الكاميرا! يرجى السماح يدويًا.";
                 startBtn.style.display = "block";
+                return;
             }
-        };
+        } catch (e) { /* ignore */ }
+    }
+    scanMsg.textContent = "جاري تشغيل الكاميرا ...";
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        video.srcObject = stream;
+        video.style.display = "block";
+        scanMsg.style.display = "none";
+        scanning = true;
+        scanQR();
+    } catch (err) {
+        scanMsg.textContent = "تعذر الوصول للكاميرا. تأكد من إعطاء الإذن.";
+        startBtn.style.display = "block";
+    }
+};
+
 
         function stopScan() {
             scanning = false;
